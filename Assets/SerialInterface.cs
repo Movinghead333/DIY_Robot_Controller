@@ -20,9 +20,12 @@ public class SerialInterface : MonoBehaviour
     }
     #endregion
 
+    public SerialPortSelectionUIC serialPortSelectionUIC;
+
     // Serial communication fields
     SerialPort serialPort;
-    string comPort = "COM4";
+    string[] serialPortNames;
+    int currentIndex = 0;
 
     // fields for updates per second mechanic
     float updatesPerSecond = 100;
@@ -34,10 +37,11 @@ public class SerialInterface : MonoBehaviour
     // initialize serialport on startup
     void Start()
     {
-        serialPort = new SerialPort(comPort, 9600);
-        serialPort.ReadTimeout = 1;
-        serialPort.Open();
-        Debug.Log("Serial Port opened.");
+        serialPortNames = SerialPort.GetPortNames();
+        if (serialPortNames.Length > 0)
+        {
+            serialPortSelectionUIC.SetSelectedSerialPort(serialPortNames[currentIndex]);
+        }
     }
 
     // update the timer for the updates per second mechanic
@@ -50,6 +54,11 @@ public class SerialInterface : MonoBehaviour
     // public callback called from the slider of the different axes
     public void OnAxisChanged(byte axis, float value)
     {
+        if (serialPort == null || !serialPort.IsOpen)
+        {
+            return;
+        }
+
         // only allow <updatesPerSecond> updates via serial communication
         // per second to limit traffic
         if (currentTimer > 0) return;
@@ -65,6 +74,32 @@ public class SerialInterface : MonoBehaviour
         serialPort.BaseStream.Flush();
         Debug.Log("Message sent");
     }
+
+    public void OnCycleSerialPortButtonPressed()
+    {
+        if (serialPortNames.Length > 0)
+        {
+            // cycle index in length of serialPortNames array
+            currentIndex = (currentIndex + 1) % serialPortNames.Length;
+            serialPortSelectionUIC.SetSelectedSerialPort(serialPortNames[currentIndex]);
+        }
+    }
+
+    public void OnConnectToSerialPortButtonPressed()
+    {
+        if (serialPortNames.Length > 0)
+        {
+            serialPort = new SerialPort(serialPortNames[currentIndex], 9600);
+            serialPort.ReadTimeout = 1;
+            serialPort.Open();
+            if (serialPort.IsOpen)
+            {
+                serialPortSelectionUIC.SetSerialPortConnected();
+            }
+            Debug.Log("Serial Port opened.");
+        }
+    }
+
 
     // test code
     byte servoID = 0;
